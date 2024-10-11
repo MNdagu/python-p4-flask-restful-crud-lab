@@ -2,7 +2,7 @@
 
 from flask import Flask, jsonify, request, make_response
 from flask_migrate import Migrate
-from flask_restful import Api, Resource
+from flask_restful import Api, Resource, reqparse
 
 from models import db, Plant
 
@@ -50,6 +50,46 @@ class PlantByID(Resource):
 
 api.add_resource(PlantByID, '/plants/<int:id>')
 
+
+class UpdatePlant(Resource):
+    
+    def patch(self, id):
+        # Use reqparse to handle request arguments
+        parser = reqparse.RequestParser()
+        parser.add_argument('is_in_stock', type=bool, required=True)
+        args = parser.parse_args()
+
+        # Fetch the plant by ID
+        plant = Plant.query.filter(Plant.id == id).first()
+        if not plant:
+            return {'message': 'Plant not found'}, 404
+
+        # Update the is_in_stock field if it's present in the request
+        if 'is_in_stock' in args:
+            plant.is_in_stock = args['is_in_stock']
+
+        # Commit the changes
+        db.session.commit()
+
+        # Return the updated plant as a JSON response
+        return make_response(jsonify(plant.to_dict()), 200)
+    
+api.add_resource(UpdatePlant, '/plants/<int:id>')
+
+
+class DeletePlant(Resource):
+
+    def delete(self, id):
+        plant = Plant.query.filter(Plant.id == id).first()
+        if not plant:
+            return {'message': 'Plant not found'}, 404
+
+        db.session.delete(plant)
+        db.session.commit()
+
+        return '', 204
+            
+api.add_resource(DeletePlant, '/plants/<int:id>')
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
